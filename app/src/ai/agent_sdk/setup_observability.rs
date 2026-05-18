@@ -58,13 +58,17 @@ impl SetupClientEventReporter {
         let Some(run_id) = self.run_id else {
             return;
         };
-
-        let request = AgentRunClientEventRequest::new(
-            step.as_event_type(),
-            start_timestamp,
-            finish_timestamp,
-            is_error,
-        );
+        let request = match step {
+            SetupStep::WorkerContainerReady => {
+                AgentRunClientEventRequest::timeline_event(step.as_event_type(), finish_timestamp)
+            }
+            _ => AgentRunClientEventRequest::setup_metric_event(
+                step.as_event_type(),
+                start_timestamp,
+                finish_timestamp,
+                is_error,
+            ),
+        };
         if let Err(err) = self
             .ai_client
             .post_agent_run_client_event(&run_id, request)

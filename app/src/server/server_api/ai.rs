@@ -370,14 +370,35 @@ pub struct AgentRunClientEventRequest {
     pub event_id: String,
     pub event_type: String,
     pub timestamp: DateTime<Utc>,
-    pub start_timestamp: DateTime<Utc>,
-    pub finish_timestamp: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payload: Option<AgentRunClientEventPayload>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(untagged)]
+pub enum AgentRunClientEventPayload {
+    SetupMetric(AgentRunClientSetupMetricPayload),
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct AgentRunClientSetupMetricPayload {
+    pub start_ts: DateTime<Utc>,
+    pub finish_ts: DateTime<Utc>,
     pub latency_ms: i64,
     pub is_error: bool,
 }
 
 impl AgentRunClientEventRequest {
-    pub fn new(
+    pub fn timeline_event(event_type: impl Into<String>, timestamp: DateTime<Utc>) -> Self {
+        Self {
+            event_id: uuid::Uuid::new_v4().to_string(),
+            event_type: event_type.into(),
+            timestamp,
+            payload: None,
+        }
+    }
+
+    pub fn setup_metric_event(
         event_type: impl Into<String>,
         start_timestamp: DateTime<Utc>,
         finish_timestamp: DateTime<Utc>,
@@ -387,13 +408,17 @@ impl AgentRunClientEventRequest {
             event_id: uuid::Uuid::new_v4().to_string(),
             event_type: event_type.into(),
             timestamp: finish_timestamp,
-            start_timestamp,
-            finish_timestamp,
-            latency_ms: finish_timestamp
-                .signed_duration_since(start_timestamp)
-                .num_milliseconds()
-                .max(0),
-            is_error,
+            payload: Some(AgentRunClientEventPayload::SetupMetric(
+                AgentRunClientSetupMetricPayload {
+                    start_ts: start_timestamp,
+                    finish_ts: finish_timestamp,
+                    latency_ms: finish_timestamp
+                        .signed_duration_since(start_timestamp)
+                        .num_milliseconds()
+                        .max(0),
+                    is_error,
+                },
+            )),
         }
     }
 }
