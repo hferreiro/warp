@@ -621,8 +621,10 @@ impl OrchestrationPillBar {
             is_selected: orchestrator_id == active_id,
             kind: PillKind::Orchestrator,
             pin_state: PillPinState::Unpinned,
-            // Orchestrators always run locally; the cloud overlay is reserved
-            // for remote children.
+            // `is_remote_child` is a child-placeholder flag and never applies
+            // to the orchestrator itself. A cloud-to-cloud orchestrator can
+            // still be running remotely, but surfacing that via the cloud
+            // overlay would need separate plumbing.
             is_remote_child: false,
         });
 
@@ -1336,15 +1338,19 @@ fn render_hover_card(
     // the card. Slightly larger than the longest expected status label
     // ("In progress") plus its icon and padding.
     const STATUS_BADGE_MAX_WIDTH: f32 = 96.;
-    let badge_status: ConversationStatus = if is_orchestrator {
-        aggregated_orchestrator_status(history, conversation_id)
+    // Hold an aggregated status by value on the orchestrator path so the
+    // non-orchestrator path can keep passing the child's status by
+    // reference (no clone).
+    let aggregated_status;
+    let badge_status: &ConversationStatus = if is_orchestrator {
+        aggregated_status = aggregated_orchestrator_status(history, conversation_id);
+        &aggregated_status
     } else {
-        conversation.status().clone()
+        conversation.status()
     };
-    let status_badge: Box<dyn Element> =
-        ConstrainedBox::new(render_status_badge(&badge_status, theme, appearance))
-            .with_max_width(STATUS_BADGE_MAX_WIDTH)
-            .finish();
+    let status_badge = ConstrainedBox::new(render_status_badge(badge_status, theme, appearance))
+        .with_max_width(STATUS_BADGE_MAX_WIDTH)
+        .finish();
     // Compute the name's max width by subtracting all of the surrounding
     // chrome from the card width: card horizontal padding (12+12), the
     // 16px avatar, the 8px avatar→name gap, an 8px name→badge gap, and
