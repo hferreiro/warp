@@ -367,8 +367,8 @@ pub struct ReportAgentEventResponse {
 }
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct AgentRunClientEventRequest {
-    pub event_id: String,
-    pub event_type: String,
+    pub event_uuid: String,
+    pub event_name: String,
     pub timestamp: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payload: Option<AgentRunClientEventPayload>,
@@ -389,24 +389,24 @@ pub struct AgentRunClientSetupMetricPayload {
 }
 
 impl AgentRunClientEventRequest {
-    pub fn timeline_event(event_type: impl Into<String>, timestamp: DateTime<Utc>) -> Self {
+    pub fn timeline_event(event_name: impl Into<String>, timestamp: DateTime<Utc>) -> Self {
         Self {
-            event_id: uuid::Uuid::new_v4().to_string(),
-            event_type: event_type.into(),
+            event_uuid: uuid::Uuid::new_v4().to_string(),
+            event_name: event_name.into(),
             timestamp,
             payload: None,
         }
     }
 
     pub fn setup_metric_event(
-        event_type: impl Into<String>,
+        event_name: impl Into<String>,
         start_timestamp: DateTime<Utc>,
         finish_timestamp: DateTime<Utc>,
         is_error: bool,
     ) -> Self {
         Self {
-            event_id: uuid::Uuid::new_v4().to_string(),
-            event_type: event_type.into(),
+            event_uuid: uuid::Uuid::new_v4().to_string(),
+            event_name: event_name.into(),
             timestamp: finish_timestamp,
             payload: Some(AgentRunClientEventPayload::SetupMetric(
                 AgentRunClientSetupMetricPayload {

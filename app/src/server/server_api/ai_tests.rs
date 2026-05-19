@@ -6,10 +6,10 @@ use super::super::auth::CLOUD_AGENT_ID_HEADER;
 use super::super::ServerApi;
 use super::{
     build_fork_conversation_url, build_list_agent_runs_url, build_run_followup_url,
-    AgentMessageHeader, AgentRunEvent, AgentSource, AmbientAgentTaskState, Artifact,
-    ArtifactDownloadResponse, ArtifactType, ExecutionLocation, ForkConversationResponse,
-    ListRunsResponse, ReadAgentMessageResponse, RunFollowupRequest, RunSortBy, RunSortOrder,
-    SpawnAgentRequest, TaskListFilter, UserQueryMode,
+    AgentMessageHeader, AgentRunClientEventRequest, AgentRunEvent, AgentSource,
+    AmbientAgentTaskState, Artifact, ArtifactDownloadResponse, ArtifactType, ExecutionLocation,
+    ForkConversationResponse, ListRunsResponse, ReadAgentMessageResponse, RunFollowupRequest,
+    RunSortBy, RunSortOrder, SpawnAgentRequest, TaskListFilter, UserQueryMode,
 };
 use crate::notebooks::NotebookId;
 

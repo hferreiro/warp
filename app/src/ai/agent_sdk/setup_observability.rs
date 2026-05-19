@@ -61,9 +61,9 @@ impl SetupClientEventReporter {
             return;
         };
         let timestamp = Utc::now();
-        let event_type = event.as_event_type();
-        let request = AgentRunClientEventRequest::timeline_event(event_type, timestamp);
-        Self::post_client_event(run_id, self.ai_client.clone(), event_type, request).await;
+        let event_name = event.as_event_name();
+        let request = AgentRunClientEventRequest::timeline_event(event_name, timestamp);
+        Self::post_client_event(run_id, self.ai_client.clone(), event_name, request).await;
     }
 
     fn post_setup_metric_event_best_effort(
@@ -80,14 +80,14 @@ impl SetupClientEventReporter {
         let ai_client = self.ai_client.clone();
         self.background
             .spawn(async move {
-                let event_type = step.as_event_type();
+                let event_name = step.as_event_name();
                 let request = AgentRunClientEventRequest::setup_metric_event(
-                    event_type,
+                    event_name,
                     start_timestamp,
                     finish_timestamp,
                     is_error,
                 );
-                Self::post_client_event(run_id, ai_client, event_type, request).await;
+                Self::post_client_event(run_id, ai_client, event_name, request).await;
             })
             .detach();
     }
@@ -95,14 +95,14 @@ impl SetupClientEventReporter {
     async fn post_client_event(
         run_id: AmbientAgentTaskId,
         ai_client: Arc<dyn AIClient>,
-        event_type: &'static str,
+        event_name: &'static str,
         request: AgentRunClientEventRequest,
     ) {
         if let Err(err) = ai_client
             .post_agent_run_client_event(&run_id, request)
             .await
         {
-            log::warn!("Failed to post setup client event {event_type} for run {run_id}: {err:#}");
+            log::warn!("Failed to post setup client event {event_name} for run {run_id}: {err:#}");
         }
     }
 }
@@ -113,7 +113,7 @@ pub(crate) enum SetupTimelineEvent {
 }
 
 impl SetupTimelineEvent {
-    fn as_event_type(self) -> &'static str {
+    fn as_event_name(self) -> &'static str {
         match self {
             Self::WorkerContainerReady => "worker_container_ready",
         }
@@ -142,7 +142,7 @@ pub(crate) enum SetupStep {
 }
 
 impl SetupStep {
-    fn as_event_type(self) -> &'static str {
+    fn as_event_name(self) -> &'static str {
         match self {
             Self::TeamMetadataRefresh => "setup_team_metadata_refresh",
             Self::WarpDriveSync => "setup_warp_drive_sync",
