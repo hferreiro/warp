@@ -22,7 +22,9 @@ pub const REASONING_LEVEL_TITLE: &str = "Reasoning level";
 pub const REASONING_LEVEL_DESCRIPTION: &str = "Increased reasoning levels consume more credits and have higher latency, but higher performance for complicated tasks.";
 
 pub enum CostRow {
-    Bar { value: Option<f32> },
+    Bar {
+        value: Option<f32>,
+    },
     BilledToProvider {
         label: &'static str,
         manage_button: Box<dyn Element>,
@@ -89,7 +91,9 @@ pub fn render_model_spec_scores(
 }
 
 enum ScoreRowKind {
-    Bar { value: Option<f32> },
+    Bar {
+        value: Option<f32>,
+    },
     BilledToProvider {
         label: &'static str,
         manage_button: Box<dyn Element>,
@@ -207,13 +211,9 @@ fn render_score_row(
                 .with_cross_axis_alignment(CrossAxisAlignment::Center)
                 .with_child(
                     Container::new(
-                        Text::new(
-                            label.to_string(),
-                            appearance.ui_font_family(),
-                            14.,
-                        )
-                        .with_color(theme.disabled_ui_text_color().into())
-                        .finish(),
+                        Text::new(label.to_string(), appearance.ui_font_family(), 14.)
+                            .with_color(theme.disabled_ui_text_color().into())
+                            .finish(),
                     )
                     .finish(),
                 )
