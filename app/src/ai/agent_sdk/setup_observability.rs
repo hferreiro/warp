@@ -35,7 +35,12 @@ impl SetupClientEventReporter {
         let start_timestamp = Utc::now();
         let result = future.await;
         let finish_timestamp = Utc::now();
-        self.post_best_effort(step, start_timestamp, finish_timestamp, result.is_err());
+        self.post_setup_metric_event_best_effort(
+            step,
+            start_timestamp,
+            finish_timestamp,
+            result.is_err(),
+        );
         result
     }
 
@@ -47,17 +52,21 @@ impl SetupClientEventReporter {
         let start_timestamp = Utc::now();
         let value = future.await;
         let finish_timestamp = Utc::now();
-        self.post_best_effort(step, start_timestamp, finish_timestamp, false);
+        self.post_setup_metric_event_best_effort(step, start_timestamp, finish_timestamp, false);
         value
     }
 
-    /// Posts an instant event to the server
-    pub(crate) async fn post_instant(&self, step: SetupStep) {
+    pub(crate) async fn post_timeline_event(&self, event: SetupTimelineEvent) {
+        let Some(run_id) = self.run_id else {
+            return;
+        };
         let timestamp = Utc::now();
-        self.post(step, timestamp, timestamp, false).await;
+        let event_type = event.as_event_type();
+        let request = AgentRunClientEventRequest::timeline_event(event_type, timestamp);
+        Self::post_client_event(run_id, self.ai_client.clone(), event_type, request).await;
     }
 
-    fn post_best_effort(
+    fn post_setup_metric_event_best_effort(
         &self,
         step: SetupStep,
         start_timestamp: DateTime<Utc>,
@@ -71,74 +80,48 @@ impl SetupClientEventReporter {
         let ai_client = self.ai_client.clone();
         self.background
             .spawn(async move {
-                Self::post_to_server(
-                    run_id,
-                    ai_client,
-                    step,
+                let event_type = step.as_event_type();
+                let request = AgentRunClientEventRequest::setup_metric_event(
+                    event_type,
                     start_timestamp,
                     finish_timestamp,
                     is_error,
-                )
-                .await;
+                );
+                Self::post_client_event(run_id, ai_client, event_type, request).await;
             })
             .detach();
     }
 
-    async fn post(
-        &self,
-        step: SetupStep,
-        start_timestamp: DateTime<Utc>,
-        finish_timestamp: DateTime<Utc>,
-        is_error: bool,
-    ) {
-        let Some(run_id) = self.run_id else {
-            return;
-        };
-        Self::post_to_server(
-            run_id,
-            self.ai_client.clone(),
-            step,
-            start_timestamp,
-            finish_timestamp,
-            is_error,
-        )
-        .await;
-    }
-
-    async fn post_to_server(
+    async fn post_client_event(
         run_id: AmbientAgentTaskId,
         ai_client: Arc<dyn AIClient>,
-        step: SetupStep,
-        start_timestamp: DateTime<Utc>,
-        finish_timestamp: DateTime<Utc>,
-        is_error: bool,
+        event_type: &'static str,
+        request: AgentRunClientEventRequest,
     ) {
-        let request = match step {
-            SetupStep::WorkerContainerReady => {
-                AgentRunClientEventRequest::timeline_event(step.as_event_type(), finish_timestamp)
-            }
-            _ => AgentRunClientEventRequest::setup_metric_event(
-                step.as_event_type(),
-                start_timestamp,
-                finish_timestamp,
-                is_error,
-            ),
-        };
         if let Err(err) = ai_client
             .post_agent_run_client_event(&run_id, request)
             .await
         {
-            log::warn!(
-                "Failed to post best-effort setup client event {} for run {run_id}: {err:#}",
-                step.as_event_type()
-            );
+            log::warn!("Failed to post setup client event {event_type} for run {run_id}: {err:#}");
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum SetupTimelineEvent {
+    WorkerContainerReady,
+}
+
+impl SetupTimelineEvent {
+    fn as_event_type(self) -> &'static str {
+        match self {
+            Self::WorkerContainerReady => "worker_container_ready",
         }
     }
 }
 
 #[derive(Clone, Copy)]
 pub(crate) enum SetupStep {
-    WorkerContainerReady,
     TeamMetadataRefresh,
     WarpDriveSync,
     TaskMetadataSecretsAttachmentsGitCredentialsFetch,
@@ -161,7 +144,6 @@ pub(crate) enum SetupStep {
 impl SetupStep {
     fn as_event_type(self) -> &'static str {
         match self {
-            Self::WorkerContainerReady => "worker_container_ready",
             Self::TeamMetadataRefresh => "setup_team_metadata_refresh",
             Self::WarpDriveSync => "setup_warp_drive_sync",
             Self::TaskMetadataSecretsAttachmentsGitCredentialsFetch => {

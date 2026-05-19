@@ -15,7 +15,9 @@ use crate::ai::agent::conversation::AIConversationId;
 use crate::ai::agent_sdk::driver::harness::{harness_kind, HarnessKind};
 use crate::ai::agent_sdk::driver::{AgentDriverOptions, AgentRunPrompt, Task};
 use crate::ai::agent_sdk::mcp_config::build_mcp_servers_from_specs;
-use crate::ai::agent_sdk::setup_observability::{SetupClientEventReporter, SetupStep};
+use crate::ai::agent_sdk::setup_observability::{
+    SetupClientEventReporter, SetupStep, SetupTimelineEvent,
+};
 #[cfg(not(target_family = "wasm"))]
 use crate::ai::aws_credentials::refresh_aws_credentials;
 use crate::ai::llms::LLMId;
@@ -602,7 +604,7 @@ impl AgentDriverRunner {
         let background = foreground.spawn(|_, ctx| ctx.background_executor()).await?;
         let setup_events = SetupClientEventReporter::new(task_id, server_api.clone(), background);
         setup_events
-            .post_instant(SetupStep::WorkerContainerReady)
+            .post_timeline_event(SetupTimelineEvent::WorkerContainerReady)
             .await;
 
         // Ensure we've synced team state before starting the driver.
