@@ -1,6 +1,6 @@
 use crate::ai::llms::{
     is_using_api_key_for_provider, should_show_bedrock_icon_for_model, DisableReason, LLMId,
-    LLMInfo, LLMPreferences
+    LLMInfo, LLMPreferences,
 };
 use crate::menu::{MenuItem, MenuItemFields, MenuTooltipPosition};
 use itertools::Itertools;
@@ -87,7 +87,7 @@ fn make_item_fields<A: Action + Clone>(
         .is_some();
     let is_using_bedrock = !is_auto(llm) && should_show_bedrock_icon_for_model(llm, app);
     let credential_icon = if is_using_bedrock {
-        Some(Icon::AwsBedrock)
+        Some(Icon::Aws)
     } else if is_custom_endpoint || is_using_api_key_for_provider(&llm.provider, app) {
         Some(Icon::Key)
     } else {
@@ -103,7 +103,8 @@ fn make_item_fields<A: Action + Clone>(
 
                 let icon_container = Container::new(
                     ConstrainedBox::new(if let Some(icon) = credential_icon {
-                        icon.to_warpui_icon(appearance.theme().foreground()).finish()
+                        icon.to_warpui_icon(appearance.theme().foreground())
+                            .finish()
                     } else {
                         Empty::new().finish()
                     })

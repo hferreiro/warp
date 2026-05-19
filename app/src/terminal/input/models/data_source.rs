@@ -276,7 +276,7 @@ impl ModelSearchItem {
             is_custom_endpoint,
             disable_reason,
             credential_icon: if is_using_bedrock {
-                Some(Icon::AwsBedrock)
+                Some(Icon::Aws)
             } else if is_custom_endpoint || is_using_api_key_for_provider(&llm.provider, app) {
                 Some(Icon::Key)
             } else {
@@ -374,11 +374,10 @@ impl SearchItem for ModelSearchItem {
             .with_child(text.finish());
 
         if let Some(icon) = self.credential_icon {
-            let key_icon =
-                ConstrainedBox::new(icon.to_warpui_icon(secondary_text_color).finish())
-                    .with_width(font_size)
-                    .with_height(font_size)
-                    .finish();
+            let key_icon = ConstrainedBox::new(icon.to_warpui_icon(secondary_text_color).finish())
+                .with_width(font_size)
+                .with_height(font_size)
+                .finish();
             row = row.with_child(Container::new(key_icon).with_margin_left(6.).finish());
         }
 
