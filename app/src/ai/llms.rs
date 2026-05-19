@@ -16,9 +16,6 @@ use crate::{
     network::{NetworkStatus, NetworkStatusEvent, NetworkStatusKind},
     report_error,
     server::server_api::ServerApiProvider,
-    workspace::bonus_grant_notification_model::{
-        BonusGrantNotificationEvent, BonusGrantNotificationModel,
-    },
     workspaces::user_workspaces::{UserWorkspaces, UserWorkspacesEvent},
 };
 
@@ -557,16 +554,11 @@ struct AvailableLLMsUpdate {
     popup_visibility_state: Arc<FairMutex<UpdatePopupVisibilityState>>,
 }
 
-struct PremiumModelsUnlockedUpdate {
-    popup_visibility_state: Arc<FairMutex<UpdatePopupVisibilityState>>,
-}
-
 /// Singleton model holding user/workspace LLM preferences, including the set of LLMs available for
 /// use as well as the user's preferred LLM for Agent Mode.
 pub struct LLMPreferences {
     models_by_feature: ModelsByFeature,
     last_update: Option<AvailableLLMsUpdate>,
-    premium_models_unlocked_update: Option<PremiumModelsUnlockedUpdate>,
     // Stores temporary model overrides for a given terminal view.
     // NOTE: We only store an override if the model selected by the user is different
     // from the base LLM for the active profile. This means that if the user selects the
@@ -612,15 +604,6 @@ impl LLMPreferences {
             }
         });
 
-        ctx.subscribe_to_model(
-            &BonusGrantNotificationModel::handle(ctx),
-            |me, event, ctx| {
-                if let BonusGrantNotificationEvent::BuildPlanAmbientGrantReceived = event {
-                    me.prepare_premium_models_unlocked_popup(ctx);
-                }
-            },
-        );
-
         // Re-reconcile disabled model preferences when BYOK keys change, since
         // RequiresUpgrade models may become usable or unusable.
         // Also rebuild `custom_llms` so adds/edits/removals to the user's custom endpoints
@@ -640,7 +623,6 @@ impl LLMPreferences {
         let me = Self {
             models_by_feature,
             last_update: None,
-            premium_models_unlocked_update: None,
             base_llm_for_terminal_view,
             custom_llms,
         };
@@ -1068,18 +1050,6 @@ impl LLMPreferences {
         })
     }
 
-    pub fn should_show_premium_models_unlocked_popup(&self, view_id: EntityId) -> bool {
-        self.premium_models_unlocked_update
-            .as_ref()
-            .is_some_and(|update| {
-                let popup_state = &*update.popup_visibility_state.lock();
-                matches!(popup_state, UpdatePopupVisibilityState::WaitingToBeShown)
-                    || matches!(
-                    popup_state,
-                    UpdatePopupVisibilityState::Visible(id) if *id == view_id)
-            })
-    }
-
     pub fn mark_new_choices_popup_as_shown(&self, view_id: EntityId) {
         if let Some(update) = self.last_update.as_ref() {
             if matches!(
@@ -1092,38 +1062,14 @@ impl LLMPreferences {
         }
     }
 
-    pub fn mark_premium_models_unlocked_popup_as_shown(&self, view_id: EntityId) {
-        if let Some(update) = self.premium_models_unlocked_update.as_ref() {
-            if matches!(
-                &*update.popup_visibility_state.lock(),
-                UpdatePopupVisibilityState::WaitingToBeShown
-            ) {
-                *update.popup_visibility_state.lock() =
-                    UpdatePopupVisibilityState::Visible(view_id);
-            }
-        }
-    }
-
     pub fn hide_llm_popup(&self, view_id: EntityId) {
-        if self.should_show_premium_models_unlocked_popup(view_id) {
-            if let Some(update) = self.premium_models_unlocked_update.as_ref() {
-                *update.popup_visibility_state.lock() = UpdatePopupVisibilityState::Hidden;
-            }
+        if !self.should_show_new_choices_popup(view_id) {
+            return;
         }
-        if self.should_show_new_choices_popup(view_id) {
-            if let Some(last_update) = self.last_update.as_ref() {
-                *last_update.popup_visibility_state.lock() = UpdatePopupVisibilityState::Hidden;
-            }
-        }
-    }
-
-    fn prepare_premium_models_unlocked_popup(&mut self, ctx: &mut ModelContext<Self>) {
-        self.premium_models_unlocked_update = Some(PremiumModelsUnlockedUpdate {
-            popup_visibility_state: Arc::new(FairMutex::new(
-                UpdatePopupVisibilityState::WaitingToBeShown,
-            )),
-        });
-        ctx.emit(LLMPreferencesEvent::UpdatedAvailableLLMs);
+        let Some(last_update) = self.last_update.as_ref() else {
+            return;
+        };
+        *last_update.popup_visibility_state.lock() = UpdatePopupVisibilityState::Hidden;
     }
 
     /// Fetches the latest set of models from the server for the currently logged in user, and updates the model.
