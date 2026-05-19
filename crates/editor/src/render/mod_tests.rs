@@ -323,7 +323,7 @@ Task List @ 1 [X] (2 characters, 1 lines, 18.00px tall)
 -------- 18.00px / 2 characters --------
 Task List @ 1 [ ] (2 characters, 1 lines, 18.00px tall)
 -------- 36.00px / 4 characters --------
-Trailing Newline (1 characters, 1 lines, 32.00px tall)
+Trailing Newline (1 characters, 1 lines, 24.00px tall)
         "#,
         );
 
@@ -344,7 +344,7 @@ Task List @ 1 [ ] (2 characters, 1 lines, 18.00px tall)
 -------- 54.00px / 6 characters --------
 Task List @ 1 [ ] (2 characters, 1 lines, 18.00px tall)
 -------- 72.00px / 8 characters --------
-Trailing Newline (1 characters, 1 lines, 32.00px tall)
+Trailing Newline (1 characters, 1 lines, 24.00px tall)
         "#,
         )
     });

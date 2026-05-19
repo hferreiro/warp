@@ -10,15 +10,14 @@ use warp_editor::{
         BlockHeaderSize, BlockType as ContentBlockType, BufferBlockStyle, CodeBlockType,
     },
     render::model::{
-        BlockSpacings, BrokenLinkStyle, CheckBoxStyle, EmbeddedItem, HorizontalRuleStyle,
-        InlineCodeStyle, ParagraphStyles, RichTextStyles, TableStyle,
+        BrokenLinkStyle, CheckBoxStyle, EmbeddedItem, HorizontalRuleStyle, InlineCodeStyle,
+        ParagraphStyles, RichTextStyles, TableStyle,
     },
 };
 use warp_util::user_input::UserInput;
 use warpui::{
     elements::{Border, ListIndentLevel},
     fonts::FamilyId,
-    text_layout::DEFAULT_TOP_BOTTOM_RATIO,
     ui_components::checkbox::HOVER_BACKGROUND_COLOR,
 };
 
@@ -45,11 +44,7 @@ mod omnibar;
 pub mod view;
 
 pub use block_insertion_menu::BlockInsertionSource;
-
-// Rich text uses slightly roomier line metrics than the app-wide editor setting
-// for readability in mixed Markdown content. Gaps between paragraphs and headers
-// are handled separately by block spacing.
-const RICH_TEXT_LINE_HEIGHT_RATIO_ADJUSTMENT: f32 = 0.15;
+const NOTEBOOK_BASELINE_RATIO: f32 = 0.7;
 
 #[derive(Clone, Copy)]
 pub(crate) struct MarkdownTableAppearance {
@@ -65,12 +60,6 @@ pub(crate) struct MarkdownTableAppearance {
     pub outer_border: bool,
     pub column_dividers: bool,
     pub row_dividers: bool,
-}
-
-fn rich_text_line_height_ratio(appearance: &Appearance) -> f32 {
-    // This adjusts the vertical advance of lines within a paragraph. Paragraph
-    // and header separation comes from block spacings instead.
-    appearance.line_height_ratio() + RICH_TEXT_LINE_HEIGHT_RATIO_ADJUSTMENT
 }
 
 /// A kind of block that can be added to a notebook.
@@ -214,8 +203,8 @@ pub(crate) fn markdown_table_style(
 
 /// Build [`RichTextStyles`] based on the current [`Appearance`].
 pub fn rich_text_styles(appearance: &Appearance, font_settings: &FontSettings) -> RichTextStyles {
-    let line_height_ratio = rich_text_line_height_ratio(appearance);
-    let baseline_ratio = DEFAULT_TOP_BOTTOM_RATIO;
+    let line_height_ratio = appearance.line_height_ratio();
+    let baseline_ratio = NOTEBOOK_BASELINE_RATIO;
     let theme = appearance.theme();
     let inline_font_color: ColorU = theme.terminal_colors().normal.red.into();
     let font_size = derived_notebook_font_size(font_settings);
@@ -283,7 +272,7 @@ pub fn rich_text_styles(appearance: &Appearance, font_settings: &FontSettings) -
             icon_path: "bundled/svg/link-broken-02.svg",
             icon_color: theme.terminal_colors().normal.red.into(),
         },
-        block_spacings: BlockSpacings::default(),
+        block_spacings: Default::default(),
         show_placeholder_text_on_empty_block: true,
         minimum_paragraph_height: Some(base_text.line_height()),
         cursor_width: 3.,
