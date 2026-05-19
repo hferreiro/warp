@@ -1,5 +1,5 @@
 use parking_lot::FairMutex;
-use serde::{Deserialize, Serialize, de};
+use serde::{de, Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, OnceLock},
@@ -10,8 +10,8 @@ use warpui::{AppContext, Entity, EntityId, ModelContext, SingletonEntity};
 
 use crate::{
     auth::{
-        AuthStateProvider,
         auth_manager::{AuthManager, AuthManagerEvent},
+        AuthStateProvider,
     },
     network::{NetworkStatus, NetworkStatusEvent, NetworkStatusKind},
     report_error,
@@ -42,6 +42,16 @@ pub fn is_using_api_key_for_provider(provider: &LLMProvider, app: &AppContext) -
         LLMProvider::Google => api_keys.is_some_and(|keys| keys.google.is_some()),
         _ => false,
     }
+}
+
+/// Returns `true` if the model is configured to route through AWS Bedrock and
+/// the current workspace/user settings enable sending AWS Bedrock credentials.
+pub fn should_show_bedrock_icon_for_model(llm: &LLMInfo, app: &AppContext) -> bool {
+    UserWorkspaces::as_ref(app).is_aws_bedrock_credentials_enabled(app)
+        && llm
+            .host_configs
+            .get(&LLMModelHost::AwsBedrock)
+            .is_some_and(|config| config.enabled)
 }
 
 /// Key for cached LLM metadata in user preferences.

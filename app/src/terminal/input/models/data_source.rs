@@ -19,8 +19,8 @@ use warpui::{AppContext, Element, Entity, EntityId, SingletonEntity as _};
 
 use crate::ai::execution_profiles::model_menu_items::is_auto;
 use crate::ai::llms::{
-    is_using_api_key_for_provider, DisableReason, LLMId, LLMInfo, LLMPreferences, LLMProvider,
-    LLMSpec,
+    is_using_api_key_for_provider, should_show_bedrock_icon_for_model, DisableReason, LLMId,
+    LLMInfo, LLMPreferences, LLMProvider, LLMSpec,
 };
 use crate::auth::AuthStateProvider;
 use crate::features::FeatureFlag;
@@ -242,6 +242,7 @@ struct ModelSearchItem {
     is_selected: bool,
     is_custom_endpoint: bool,
     disable_reason: Option<DisableReason>,
+    credential_icon: Option<Icon>,
     name_match_result: Option<FuzzyMatchResult>,
     score: OrderedFloat<f64>,
     manage_api_key_mouse_state: MouseStateHandle,
@@ -272,6 +273,13 @@ impl ModelSearchItem {
             is_selected: &llm.id == active_llm_id,
             is_custom_endpoint,
             disable_reason,
+            credential_icon: if is_using_api_key_for_provider(&llm.provider, app) {
+                Some(Icon::Key)
+            } else if !is_auto(llm) && should_show_bedrock_icon_for_model(llm, app) {
+                Some(Icon::Cloud)
+            } else {
+                None
+            },
             name_match_result: None,
             score: OrderedFloat(f64::MIN),
             manage_api_key_mouse_state: Default::default(),
@@ -362,9 +370,9 @@ impl SearchItem for ModelSearchItem {
             .with_cross_axis_alignment(CrossAxisAlignment::Center)
             .with_child(text.finish());
 
-        if self.is_custom_endpoint || is_using_api_key_for_provider(&self.provider, app) {
+        if let Some(icon) = self.credential_icon {
             let key_icon =
-                ConstrainedBox::new(Icon::Key.to_warpui_icon(secondary_text_color).finish())
+                ConstrainedBox::new(icon.to_warpui_icon(secondary_text_color).finish())
                     .with_width(font_size)
                     .with_height(font_size)
                     .finish();
