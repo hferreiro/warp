@@ -23,7 +23,10 @@ pub const REASONING_LEVEL_DESCRIPTION: &str = "Increased reasoning levels consum
 
 pub enum CostRow {
     Bar { value: Option<f32> },
-    BilledToApi { manage_button: Box<dyn Element> },
+    BilledToProvider {
+        label: &'static str,
+        manage_button: Box<dyn Element>,
+    },
 }
 
 pub struct ModelSpecScoresLayout {
@@ -63,10 +66,16 @@ pub fn render_model_spec_scores(
                 app,
             ));
         }
-        CostRow::BilledToApi { manage_button } => {
+        CostRow::BilledToProvider {
+            label,
+            manage_button,
+        } => {
             rows.push(render_score_row(
                 "Cost",
-                ScoreRowKind::BilledToApi { manage_button },
+                ScoreRowKind::BilledToProvider {
+                    label,
+                    manage_button,
+                },
                 layout.bg_bar_color,
                 app,
             ));
@@ -81,7 +90,10 @@ pub fn render_model_spec_scores(
 
 enum ScoreRowKind {
     Bar { value: Option<f32> },
-    BilledToApi { manage_button: Box<dyn Element> },
+    BilledToProvider {
+        label: &'static str,
+        manage_button: Box<dyn Element>,
+    },
 }
 
 fn render_score_row(
@@ -184,7 +196,10 @@ fn render_score_row(
             )
             .finish()
         }
-        ScoreRowKind::BilledToApi { manage_button } => Expanded::new(
+        ScoreRowKind::BilledToProvider {
+            label,
+            manage_button,
+        } => Expanded::new(
             1.,
             Flex::row()
                 .with_main_axis_size(MainAxisSize::Max)
@@ -193,7 +208,7 @@ fn render_score_row(
                 .with_child(
                     Container::new(
                         Text::new(
-                            "Billed to API".to_string(),
+                            label.to_string(),
                             appearance.ui_font_family(),
                             14.,
                         )

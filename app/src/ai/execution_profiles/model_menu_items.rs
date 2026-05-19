@@ -85,11 +85,11 @@ fn make_item_fields<A: Action + Clone>(
     let is_custom_endpoint = LLMPreferences::as_ref(app)
         .custom_llm_info_for_id(&llm.id)
         .is_some();
-    let credential_icon = if is_custom_endpoint || is_using_api_key_for_provider(&llm.provider, app)
-    {
-        Some(Icon::Key)
-    } else if !is_auto(llm) && should_show_bedrock_icon_for_model(llm, app) {
+    let is_using_bedrock = !is_auto(llm) && should_show_bedrock_icon_for_model(llm, app);
+    let credential_icon = if is_using_bedrock {
         Some(Icon::Cloud)
+    } else if is_custom_endpoint || is_using_api_key_for_provider(&llm.provider, app) {
+        Some(Icon::Key)
     } else {
         None
     };
