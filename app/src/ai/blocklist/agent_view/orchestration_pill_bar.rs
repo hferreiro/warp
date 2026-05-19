@@ -102,6 +102,44 @@ pub(crate) fn pill_initial(name: &str) -> char {
         .map(|c| c.to_ascii_uppercase())
         .unwrap_or('A')
 }
+
+/// Sort priority for a pill given its conversation status. Lower numbers
+/// sort to the start of their section, so attention-needing pills
+/// (Blocked, Error) lead and finished pills (Cancelled, Success) trail.
+/// Applied to both the pinned and the unpinned sections.
+///
+/// Cancelled and Success share the same key so the trailing "done"
+/// section is sorted by recency (most recently finished first — see
+/// `pill_done_recency_key`) rather than by completion type. Within the
+/// non-done buckets (Blocked / Error / InProgress) spawn order remains
+/// the tiebreaker so freshly-spawned siblings don't shuffle around
+/// while they run.
+///
+/// Orchestrator pills carry `status = None` but are never routed through
+/// this sort (they always render first), so the `None` arm just picks
+/// the same key as `InProgress` for safety.
+fn pill_status_sort_key(status: Option<&ConversationStatus>) -> u8 {
+    match status {
+        Some(ConversationStatus::Blocked { .. }) => 0,
+        Some(ConversationStatus::Error) => 1,
+        Some(ConversationStatus::InProgress) => 2,
+        Some(ConversationStatus::Cancelled) | Some(ConversationStatus::Success) => 3,
+        None => 2,
+    }
+}
+
+/// Tiebreaker for pills that fall in the trailing "done" bucket
+/// (`pill_status_sort_key` == 3). Returns a value that sorts ascending
+/// so the most recently finished pill ends up leftmost. Pills without a
+/// known finish time (`None`) sort to the end of the done section.
+///
+/// Implemented as the negation of the last-modified epoch-millis so a
+/// larger timestamp (more recent) yields a more-negative key. Missing
+/// timestamps map to `0`, which is greater than any populated negative
+/// value and therefore lands after them in ascending order.
+fn pill_done_recency_key(last_modified_ms: Option<i64>) -> i64 {
+    -last_modified_ms.unwrap_or(0)
+}
 /// Renders the orchestrator avatar disc shared by pill, breadcrumb, and transcript
 /// surfaces.
 pub(crate) fn render_orchestrator_avatar_disc(
@@ -170,6 +208,12 @@ struct PillSpec {
     pin_state: PillPinState,
     /// Child running on a remote worker; drives the cloud-shaped badge variant.
     is_remote_child: bool,
+    /// Epoch milliseconds of the conversation's last activity (latest
+    /// exchange's finish_time, falling back to its start_time). Used as
+    /// the recency tiebreaker for pills in the trailing "done" bucket so
+    /// the most recently completed pill renders leftmost. `None` for
+    /// the orchestrator and for conversations with no exchanges yet.
+    last_modified_ms: Option<i64>,
 }
 
 #[derive(Clone, Copy)]
@@ -592,6 +636,8 @@ impl OrchestrationPillBar {
             pin_state: PillPinState::Unpinned,
             // Unused: orchestrator pills don't render a status overlay.
             is_remote_child: false,
+            // Unused: orchestrator pills aren't sorted (they render first).
+            last_modified_ms: None,
         });
 
         // Stamp each child's current pin state; partitioning happens at render.
@@ -616,6 +662,7 @@ impl OrchestrationPillBar {
                 kind: PillKind::Child,
                 pin_state,
                 is_remote_child: child.is_remote_child(),
+                last_modified_ms: child.last_modified_at().map(|t| t.timestamp_millis()),
             });
         }
 
@@ -1022,11 +1069,17 @@ impl View for OrchestrationPillBar {
         // this id has been split off into another pane/tab.
         let self_terminal_view_id = self.agent_view_controller.as_ref(app).terminal_view_id();
         // Bucket pills so the row is: orchestrator, pinned, divider, unpinned.
-        // Spawn order within each child bucket is preserved by iteration order.
+        // Within each child bucket pills are sorted by status priority
+        // (Blocked, Error, InProgress, then a combined Done bucket that
+        // holds Cancelled + Success). For non-done pills spawn order is
+        // the tiebreaker; for done pills the tiebreaker is
+        // `pill_done_recency_key` so the most recently finished pill ends
+        // up leftmost in the trailing section.
+        const DONE_STATUS_KEY: u8 = 3;
         let mut orchestrator_pill: Option<Box<dyn Element>> = None;
-        let mut pinned_pills: Vec<Box<dyn Element>> = Vec::new();
-        let mut unpinned_pills: Vec<Box<dyn Element>> = Vec::new();
-        for spec in specs {
+        let mut pinned_pills: Vec<(u8, i64, usize, Box<dyn Element>)> = Vec::new();
+        let mut unpinned_pills: Vec<(u8, i64, usize, Box<dyn Element>)> = Vec::new();
+        for (spawn_index, spec) in specs.into_iter().enumerate() {
             let mouse_state = mouse_states
                 .entry(spec.conversation_id)
                 .or_default()
@@ -1046,6 +1099,15 @@ impl View for OrchestrationPillBar {
             let menu_is_open_for_this = menu_open_for == Some(spec.conversation_id);
             let kind = spec.kind;
             let pin_state = spec.pin_state;
+            let status_key = pill_status_sort_key(spec.status.as_ref());
+            // Recency wins inside the done bucket; spawn order rules the
+            // others (use 0 there so the secondary key collapses and the
+            // tertiary `spawn_index` decides).
+            let secondary_key = if status_key == DONE_STATUS_KEY {
+                pill_done_recency_key(spec.last_modified_ms)
+            } else {
+                0
+            };
             let pill = render_pill(
                 spec,
                 mouse_state,
@@ -1057,27 +1119,40 @@ impl View for OrchestrationPillBar {
             );
             match (kind, pin_state) {
                 (PillKind::Orchestrator, _) => orchestrator_pill = Some(pill),
-                (PillKind::Child, PillPinState::Pinned) => pinned_pills.push(pill),
-                (PillKind::Child, PillPinState::Unpinned) => unpinned_pills.push(pill),
+                (PillKind::Child, PillPinState::Pinned) => {
+                    pinned_pills.push((status_key, secondary_key, spawn_index, pill));
+                }
+                (PillKind::Child, PillPinState::Unpinned) => {
+                    unpinned_pills.push((status_key, secondary_key, spawn_index, pill));
+                }
             }
         }
         drop(mouse_states);
         drop(overflow_states);
         drop(pin_states);
 
+        // Sort each bucket by (status priority, recency-or-zero, spawn
+        // index). `sort_by_key` is stable, so the explicit `spawn_index`
+        // is belt-and-suspenders against any upstream change that might
+        // collect pills out of spawn order.
+        pinned_pills
+            .sort_by_key(|(key, secondary, spawn_index, _)| (*key, *secondary, *spawn_index));
+        unpinned_pills
+            .sort_by_key(|(key, secondary, spawn_index, _)| (*key, *secondary, *spawn_index));
+
         if let Some(pill) = orchestrator_pill {
             row.add_child(pill);
         }
         let has_pinned = !pinned_pills.is_empty();
         let has_unpinned = !unpinned_pills.is_empty();
-        for pill in pinned_pills {
+        for (_, _, _, pill) in pinned_pills {
             row.add_child(pill);
         }
         // Only show the divider when both sides actually have pills.
         if has_pinned && has_unpinned {
             row.add_child(render_pinned_divider(app));
         }
-        for pill in unpinned_pills {
+        for (_, _, _, pill) in unpinned_pills {
             row.add_child(pill);
         }
 
