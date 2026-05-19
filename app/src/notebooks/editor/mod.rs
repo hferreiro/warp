@@ -44,6 +44,7 @@ mod omnibar;
 pub mod view;
 
 pub use block_insertion_menu::BlockInsertionSource;
+const NOTEBOOK_LINE_HEIGHT_RATIO: f32 = 1.5;
 const NOTEBOOK_BASELINE_RATIO: f32 = 0.7;
 
 #[derive(Clone, Copy)]
@@ -203,7 +204,7 @@ pub(crate) fn markdown_table_style(
 
 /// Build [`RichTextStyles`] based on the current [`Appearance`].
 pub fn rich_text_styles(appearance: &Appearance, font_settings: &FontSettings) -> RichTextStyles {
-    let line_height_ratio = appearance.line_height_ratio();
+    let line_height_ratio = NOTEBOOK_LINE_HEIGHT_RATIO;
     let baseline_ratio = NOTEBOOK_BASELINE_RATIO;
     let theme = appearance.theme();
     let inline_font_color: ColorU = theme.terminal_colors().normal.red.into();

@@ -138,17 +138,20 @@ pub const BROKEN_LINK_SPACING: BlockSpacing = BlockSpacing {
 };
 
 pub const HEADER_SPACING: BlockSpacing = BlockSpacing {
-    margin: Margin::uniform(0.).with_top(4.).with_bottom(4.),
+    margin: Margin::uniform(0.)
+        .with_top(2.)
+        .with_bottom(2.)
+        .with_right(16.),
     padding: Padding::uniform(0.),
 };
 
-pub const UNORDERED_LIST_MARGIN: Margin = Margin::uniform(0.).with_top(4.).with_bottom(4.);
+pub const UNORDERED_LIST_MARGIN: Margin = Margin::uniform(4.).with_right(16.);
 pub const UNIT_UNORDERED_LIST_PADDING: f32 = 20.;
 
-pub const ORDERED_LIST_MARGIN: Margin = Margin::uniform(0.).with_top(4.).with_bottom(4.);
+pub const ORDERED_LIST_MARGIN: Margin = Margin::uniform(4.).with_right(16.);
 pub const UNIT_ORDERED_LIST_PADDING: f32 = 20.;
 
-pub const TASK_LIST_MARGIN: Margin = Margin::uniform(0.).with_top(4.).with_bottom(4.);
+pub const TASK_LIST_MARGIN: Margin = Margin::uniform(4.).with_right(16.);
 pub const UNIT_TASK_LIST_PADDING: f32 = 20.;
 
 pub const DEFAULT_BLOCK_SPACINGS: BlockSpacings = BlockSpacings {
@@ -490,8 +493,9 @@ pub struct RichTextStyles {
     pub broken_link_style: BrokenLinkStyle,
     /// Spacing configuration for blocks.
     pub block_spacings: BlockSpacings,
-    /// Minimum height for empty text paragraphs and the trailing cursor line.
-    /// Non-empty paragraphs keep their laid-out height.
+    /// Minimum height a paragraph will take. This currently
+    /// is only applied for some blocks like trailing cursor, text
+    /// and headers.
     pub minimum_paragraph_height: Option<Pixels>,
     /// Whether to show placeholder text on empty blocks.
     pub show_placeholder_text_on_empty_block: bool,
@@ -510,13 +514,6 @@ pub struct IndentableBlockSpacing {
 }
 
 impl IndentableBlockSpacing {
-    pub fn new(margin: Margin, unit_padding: f32) -> Self {
-        Self {
-            margin,
-            unit_padding,
-        }
-    }
-
     pub fn to_spacing(&self, indent_level: ListIndentLevel) -> BlockSpacing {
         BlockSpacing {
             margin: self.margin,
@@ -3524,9 +3521,6 @@ impl BlockItem {
         match self {
             BlockItem::Paragraph(paragraph) | BlockItem::Header { paragraph, .. } => {
                 let mut height = paragraph.height;
-                // The configured minimum can be larger than the laid-out line height. Apply it
-                // only to newline-only paragraphs so short non-empty lines don't inherit the
-                // blank-line height.
                 if let Some(minimum_height) = paragraph.minimum_height {
                     height = height.max(minimum_height);
                 }
