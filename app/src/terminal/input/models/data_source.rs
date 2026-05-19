@@ -276,7 +276,7 @@ impl ModelSearchItem {
             is_custom_endpoint,
             disable_reason,
             credential_icon: if is_using_bedrock {
-                Some(Icon::Cloud)
+                Some(Icon::AwsBedrock)
             } else if is_custom_endpoint || is_using_api_key_for_provider(&llm.provider, app) {
                 Some(Icon::Key)
             } else {
