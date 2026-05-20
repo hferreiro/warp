@@ -1,9 +1,9 @@
 #[cfg(not(target_family = "wasm"))]
-use crate::server::datetime_ext::DateTimeExt;
-#[cfg(not(target_family = "wasm"))]
 use chrono::DateTime;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+#[cfg(not(target_family = "wasm"))]
+use warp_core::datetime_ext::DateTimeExt;
 
 #[cfg(not(target_family = "wasm"))]
 use crate::persistence::model::MCPEnvironmentVariables;
@@ -66,8 +66,6 @@ pub use templatable_installation::TemplatableMCPServerInstallation;
 pub use templatable_installation::{VariableType, VariableValue};
 pub mod parsing;
 pub use parsing::ParsedTemplatableMCPServerResult;
-#[cfg(not(target_family = "wasm"))]
-pub mod http_client;
 #[cfg(not(target_family = "wasm"))]
 pub mod reconnecting_peer;
 

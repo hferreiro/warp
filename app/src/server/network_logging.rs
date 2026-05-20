@@ -5,8 +5,8 @@ use chrono::{DateTime, FixedOffset};
 use enclose::enclose;
 use warpui::{Entity, ModelContext, SingletonEntity};
 
-use crate::server::datetime_ext::DateTimeExt;
 use crate::server::server_api::ServerApiProvider;
+use warp_core::datetime_ext::DateTimeExt;
 
 /// Maximum number of network log items retained in memory. Matches the
 /// previous file-rotation threshold so the pane surface behaves consistently

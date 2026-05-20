@@ -14,6 +14,7 @@ use itertools::Itertools;
 use prost_types::FieldMask;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use warp_core::datetime_ext::DateTimeExt;
 use warp_multi_agent_api::{
     self as api,
     message::{tool_call::subagent::Metadata, Message},
@@ -24,7 +25,6 @@ use crate::{
         agent::comment::CodeReview,
         document::ai_document_model::{AIDocumentId, AIDocumentVersion},
     },
-    server::datetime_ext::DateTimeExt,
     terminal::model::block::BlockId,
     AIAgentTodoList,
 };

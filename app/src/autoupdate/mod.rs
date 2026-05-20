@@ -12,10 +12,7 @@ use crate::send_telemetry_sync_from_app_ctx;
 use crate::server::server_api::ServerApi;
 use crate::server::telemetry::TelemetryEvent;
 use crate::workspace::Workspace;
-use crate::{
-    channel::Channel, report_if_error, send_telemetry_from_ctx, server::datetime_ext::DateTimeExt,
-    ChannelState,
-};
+use crate::{channel::Channel, report_if_error, send_telemetry_from_ctx, ChannelState};
 use ::channel_versions::{ParsedVersion, VersionInfo};
 use anyhow::{anyhow, Context as _, Result};
 use chrono::{DateTime, FixedOffset, NaiveDate};
@@ -23,6 +20,7 @@ use rand::Rng as _;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
+use warp_core::datetime_ext::DateTimeExt;
 use warp_core::execution_mode::AppExecutionMode;
 use warpui::platform::TerminationMode;
 use warpui::r#async::Timer;

@@ -3,6 +3,7 @@ pub mod assertions;
 pub mod channel;
 pub mod command;
 pub mod context_flag;
+pub mod datetime_ext;
 pub mod errors;
 pub mod execution_mode;
 pub mod features;
