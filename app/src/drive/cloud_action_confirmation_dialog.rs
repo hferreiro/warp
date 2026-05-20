@@ -1,5 +1,5 @@
 use warpui::{
-    elements::{CornerRadius, Dismiss, MouseStateHandle, Radius},
+    elements::{Container, CornerRadius, Dismiss, MouseStateHandle, Radius},
     fonts::Weight,
     platform::Cursor,
     ui_components::{
@@ -218,7 +218,11 @@ impl View for CloudActionConfirmationDialog {
             dialog_styles(appearance),
         )
         .with_bottom_row_child(cancel_button)
-        .with_bottom_row_child(confirm_button)
+        .with_bottom_row_child(
+            Container::new(confirm_button)
+                .with_margin_left(12.)
+                .finish(),
+        )
         .with_width(DIALOG_WIDTH)
         .build()
         .finish();
