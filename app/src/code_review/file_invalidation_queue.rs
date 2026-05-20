@@ -13,6 +13,13 @@ pub struct FileInvalidationError(#[from] anyhow::Error);
 
 impl IsTransientError for FileInvalidationError {
     fn is_transient(&self) -> bool {
+        // Errors from git commands that fail because a path cannot be accessed
+        // (e.g. directory entries, submodules, or paths containing "/null") are
+        // permanent and should not be retried.
+        let msg = self.0.to_string();
+        if msg.contains("Could not access") || msg.contains("/null") {
+            return false;
+        }
         true
     }
 }
