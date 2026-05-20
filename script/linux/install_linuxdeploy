@@ -43,7 +43,7 @@ download_appimage() {
 
 # Install linuxdeploy, a helper for constructing an AppDir (and then invoking
 # appimagetool).
-download_appimage "linuxdeploy" "https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20240109-1/"
+download_appimage "linuxdeploy" "https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/"
 
 if [ ! -x "$(which linuxdeploy)" ]; then
   echo -e "⚠️  ${red}Please make sure that \"$LOCAL_BIN\" is on your PATH, otherwise some scripts may not work.${reset}"
