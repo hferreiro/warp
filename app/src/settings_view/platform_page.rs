@@ -155,16 +155,16 @@ impl PlatformPageView {
                                         }
                                     }
                                 };
-                                APIKeyProperties::new(
+                                APIKeyProperties {
                                     uid,
-                                    gql_key.name,
-                                    gql_key.key_suffix,
+                                    name: gql_key.name,
+                                    key_suffix: gql_key.key_suffix,
                                     scope,
-                                    gql_key.created_at.utc(),
-                                    gql_key.last_used_at.map(|t| t.utc()),
-                                    gql_key.expires_at.map(|t| t.utc()),
+                                    created_at: gql_key.created_at.utc(),
+                                    last_used_at: gql_key.last_used_at.map(|t| t.utc()),
+                                    expires_at: gql_key.expires_at.map(|t| t.utc()),
                                     agent_name,
-                                )
+                                }
                             })
                             .collect();
                         ctx.notify();
@@ -303,16 +303,16 @@ impl PlatformPageView {
                         warp_graphql::object_permissions::OwnerType::Team => ApiKeyScope::Team,
                     }
                 };
-                let ui_key = APIKeyProperties::new(
+                let ui_key = APIKeyProperties {
                     uid,
-                    api_key.name.clone(),
-                    api_key.key_suffix.clone(),
+                    name: api_key.name.clone(),
+                    key_suffix: api_key.key_suffix.clone(),
                     scope,
-                    api_key.created_at.utc(),
-                    api_key.last_used_at.map(|t| t.utc()),
-                    api_key.expires_at.map(|t| t.utc()),
+                    created_at: api_key.created_at.utc(),
+                    last_used_at: api_key.last_used_at.map(|t| t.utc()),
+                    expires_at: api_key.expires_at.map(|t| t.utc()),
                     agent_name,
-                );
+                };
                 self.api_keys.push(ui_key);
                 ctx.notify();
             }
@@ -436,28 +436,6 @@ enum ApiKeyScope {
 }
 
 impl APIKeyProperties {
-    fn new(
-        uid: ApiKeyUid,
-        name: impl Into<String>,
-        key_suffix: impl Into<String>,
-        scope: ApiKeyScope,
-        created_at: DateTime<Utc>,
-        last_used_at: Option<DateTime<Utc>>,
-        expires_at: Option<DateTime<Utc>>,
-        agent_name: Option<String>,
-    ) -> Self {
-        Self {
-            uid,
-            name: name.into(),
-            key_suffix: key_suffix.into(),
-            scope,
-            agent_name,
-            created_at,
-            last_used_at,
-            expires_at,
-        }
-    }
-
     fn matches_search_query(&self, query: &str, include_agent_names: bool) -> bool {
         let query = query.trim();
         if query.is_empty() {

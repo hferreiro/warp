@@ -79,16 +79,16 @@ fn name_column_max_width_never_drops_below_min_width() {
 }
 
 fn test_api_key(name: &str, agent_name: Option<&str>) -> APIKeyProperties {
-    APIKeyProperties::new(
-        "api-key-uid".to_string(),
-        name,
-        "abcd",
-        ApiKeyScope::Personal,
-        Utc::now(),
-        None,
-        None,
-        agent_name.map(str::to_string),
-    )
+    APIKeyProperties {
+        uid: "api-key-uid".to_string(),
+        name: name.to_string(),
+        key_suffix: "abcd".to_string(),
+        scope: ApiKeyScope::Personal,
+        agent_name: agent_name.map(str::to_string),
+        created_at: Utc::now(),
+        last_used_at: None,
+        expires_at: None,
+    }
 }
 
 #[test]
