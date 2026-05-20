@@ -236,7 +236,7 @@ impl AgentConfigRunner {
     /// Print a list of agents in a card-style format.
     fn print_agents_table(agents: &[AgentSkillItem]) {
         if agents.is_empty() {
-            println!("No agents found.");
+            println!("No skills found.");
             return;
         }
 
