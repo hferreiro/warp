@@ -280,7 +280,7 @@ use warp_core::execution_mode::{AppExecutionMode, ExecutionMode};
 use warp_managed_secrets::ManagedSecretManager;
 use workspace::sync_inputs::SyncedInputState;
 
-use warpui::{integration::TestDriver, App, AssetProvider as _, Event};
+use warpui::{integration::TestDriver, App, Event};
 
 use self::features::FeatureFlag;
 use crate::app_state::AppState;
@@ -947,6 +947,7 @@ fn run_internal(mut launch_mode: LaunchMode) -> Result<()> {
     #[cfg(target_os = "macos")]
     {
         use warpui::platform::mac::AppExt;
+        use warpui::AssetProvider as _;
 
         let activate_on_launch = !launch_mode.is_integration_test()
             || std::env::var("WARPUI_USE_REAL_DISPLAY_IN_INTEGRATION_TESTS").is_ok();

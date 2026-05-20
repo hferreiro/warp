@@ -27,7 +27,7 @@ use warp_editor::{
 
 use markdown_parser::markdown_parser::CODE_BLOCK_DEFAULT_MARKDOWN_LANG;
 use warp_util::user_input::UserInput;
-use warpui::{AppContext, r#async::SpawnedFutureHandle, elements::Align, platform::Cursor};
+use warpui::{elements::Align, platform::Cursor, r#async::SpawnedFutureHandle, AppContext};
 use warpui::{
     elements::{
         Border, Container, CornerRadius, CrossAxisAlignment, Empty, Flex, MainAxisAlignment,
