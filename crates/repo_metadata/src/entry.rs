@@ -91,10 +91,41 @@ impl Entry {
         path: impl Into<PathBuf>,
         files: &mut Vec<FileMetadata>,
         gitignores: &mut Vec<Gitignore>,
+        remaining_file_quota: Option<&mut usize>,
+        max_depth: usize,
+        current_depth: usize,
+        ignored_path_strategy: &IgnoredPathStrategy,
+    ) -> Result<Self, BuildTreeError> {
+        Self::build_tree_inner(
+            path,
+            files,
+            gitignores,
+            remaining_file_quota,
+            max_depth,
+            current_depth,
+            ignored_path_strategy,
+            false, /* parent_is_ignored */
+        )
+    }
+
+    /// Internal recursive helper for `build_tree`.
+    ///
+    /// `parent_is_ignored` tracks whether an ancestor directory was already
+    /// matched by a gitignore rule. When `true`, the current path is
+    /// unconditionally treated as ignored without re-running the (expensive)
+    /// regex machinery. This avoids the O(depth²) `matched_path_or_any_parents`
+    /// calls that previously dominated memory via `regex_automata` cache
+    /// allocations (see APP-4522 / Sentry #7259255054).
+    #[allow(clippy::too_many_arguments)]
+    fn build_tree_inner(
+        path: impl Into<PathBuf>,
+        files: &mut Vec<FileMetadata>,
+        gitignores: &mut Vec<Gitignore>,
         mut remaining_file_quota: Option<&mut usize>,
         max_depth: usize,
         current_depth: usize,
         ignored_path_strategy: &IgnoredPathStrategy,
+        parent_is_ignored: bool,
     ) -> Result<Self, BuildTreeError> {
         let curr_path: PathBuf = path.into();
         let is_dir = curr_path.is_dir();
@@ -104,18 +135,30 @@ impl Entry {
             return Err(BuildTreeError::Symlink);
         }
 
+        // Remember the gitignore count so we can restore it when we backtrack
+        // out of this directory. Without this, sibling directories accumulate
+        // each other's gitignore objects, bloating the vec and wasting regex
+        // work on `strip_prefix` misses.
+        let gitignores_len_before = gitignores.len();
+
         let gitignore_path = curr_path.join(".gitignore");
         if gitignore_path.exists() {
             let (gitignore, _) = Gitignore::new(gitignore_path);
             gitignores.push(gitignore);
         }
 
-        let path_is_ignored = matches_gitignores(
-            &curr_path,
-            is_dir,
-            &*gitignores,
-            true, /* check_ancestors */
-        ) || is_git_internal_path(&curr_path);
+        // If the parent is already ignored, this path is unconditionally
+        // ignored — skip the expensive gitignore regex check entirely.
+        // Otherwise, use `check_ancestors: false` because ancestors were
+        // already validated in the parent recursive call.
+        let path_is_ignored = parent_is_ignored
+            || matches_gitignores(
+                &curr_path,
+                is_dir,
+                &*gitignores,
+                false, /* check_ancestors — parents already checked */
+            )
+            || is_git_internal_path(&curr_path);
 
         // If we've reached the max depth, force lazy-loading even of non-ignored folders.
         let mut lazy_load = current_depth >= max_depth;
@@ -158,6 +201,7 @@ impl Entry {
                     .as_ref()
                     .is_some_and(|x| **x < children.len())
                 {
+                    gitignores.truncate(gitignores_len_before);
                     return Err(BuildTreeError::ExceededMaxFileLimit);
                 }
 
@@ -179,7 +223,7 @@ impl Entry {
                         };
 
                         if let Some(canonical_path) = canonical_path {
-                            match Entry::build_tree(
+                            match Entry::build_tree_inner(
                                 canonical_path,
                                 files,
                                 gitignores,
@@ -187,10 +231,12 @@ impl Entry {
                                 max_depth,
                                 current_depth + 1,
                                 ignored_path_strategy,
+                                path_is_ignored,
                             ) {
                                 Ok(entry) => Some(entry),
                                 Err(BuildTreeError::ExceededMaxFileLimit) => {
-                                    return Err(BuildTreeError::ExceededMaxFileLimit)
+                                    gitignores.truncate(gitignores_len_before);
+                                    return Err(BuildTreeError::ExceededMaxFileLimit);
                                 }
                                 Err(_) => None,
                             }
@@ -204,6 +250,10 @@ impl Entry {
                 }
             }
 
+            // Restore the gitignore stack so sibling directories don't see
+            // gitignores from this subtree.
+            gitignores.truncate(gitignores_len_before);
+
             Ok(Self::Directory(DirectoryEntry {
                 children,
                 path: StandardizedPath::from_local_absolute_unchecked(&curr_path),
@@ -213,15 +263,18 @@ impl Entry {
         } else if curr_path.is_file() {
             if let Some(remaining_file_quota) = remaining_file_quota {
                 if *remaining_file_quota == 0 {
+                    gitignores.truncate(gitignores_len_before);
                     return Err(BuildTreeError::ExceededMaxFileLimit);
                 }
 
                 *remaining_file_quota -= 1
             }
+            gitignores.truncate(gitignores_len_before);
             let metadata = FileMetadata::new(curr_path, path_is_ignored);
             files.push(metadata.clone());
             Ok(Self::File(metadata))
         } else {
+            gitignores.truncate(gitignores_len_before);
             Err(BuildTreeError::Symlink)
         }
     }
