@@ -33,6 +33,15 @@ use warpui::text::point::Point;
 
 const MAX_SYNTAX_TREES: usize = 3;
 
+/// Maximum buffer size (in bytes) for which tree-sitter syntax parsing is
+/// attempted. Buffers larger than this threshold skip parsing entirely to
+/// prevent multi-gigabyte heap spikes from grammars with expensive external
+/// scanners.
+///
+/// 1 MiB is large enough for virtually all hand-written source files while
+/// keeping the parser's memory footprint well under control.
+const MAX_SYNTAX_TREE_BUFFER_BYTES: usize = 1_024 * 1_024;
+
 thread_local! {
     static PARSER: RefCell<Parser> = RefCell::new(Parser::new());
 }
@@ -328,6 +337,20 @@ impl DecorationLayer for SyntaxTreeState {
         else {
             return;
         };
+
+        // Guard: skip tree-sitter parsing for very large buffers to avoid
+        // multi-gigabyte heap spikes from grammars with expensive external
+        // scanners (e.g. SQL). Syntax highlighting will be unavailable for
+        // files exceeding this threshold.
+        let buffer_bytes = content.byte_len().as_usize();
+        if buffer_bytes > MAX_SYNTAX_TREE_BUFFER_BYTES {
+            log::warn!(
+                "Skipping syntax tree parsing: buffer size ({buffer_bytes} bytes) exceeds \
+                 MAX_SYNTAX_TREE_BUFFER_BYTES ({MAX_SYNTAX_TREE_BUFFER_BYTES} bytes)"
+            );
+            self.buffer_version = version;
+            return;
+        }
 
         let mut syntax_tree_lock = self.syntax_tree.lock();
         let mut tree = syntax_tree_lock.get(&self.buffer_version).cloned();
